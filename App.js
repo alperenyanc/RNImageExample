@@ -1,114 +1,126 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow
- */
-
-import React from 'react';
+import React, {Component} from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
-  ScrollView,
+  Image,
   View,
+  Button,
+  ActivityIndicator,
   Text,
-  StatusBar,
 } from 'react-native';
 
-import {
-  Header,
-  LearnMoreLinks,
-  Colors,
-  DebugInstructions,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import ImagePicker from 'react-native-image-picker';
 
-const App: () => React$Node = () => {
-  return (
-    <>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
-            </View>
-          )}
-          <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </>
-  );
+import axios from 'axios';
+
+const options = {
+  title: 'Select Avatar',
+  customButtons: [{name: 'fb', title: 'Choose Photo from Facebook'}],
+  storageOptions: {
+    skipBackup: true,
+    path: 'images',
+  },
+  allowsEditing: true,
 };
 
+export default class App extends Component<Props> {
+  state = {
+    avatarSource: null,
+    loading: false,
+    error: null,
+  };
+
+  onSelectPicture = () => {
+    ImagePicker.showImagePicker(options, response => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.error) {
+        console.log('ImagePicker Error: ', response.error);
+      } else if (response.customButton) {
+        console.log('User tapped custom button: ', response.customButton);
+      } else {
+        this.uploadPhoto(response);
+      }
+    });
+  };
+
+  uploadPhoto = async response => {
+    this.setState({
+      avatarSource: null,
+      loading: true,
+    });
+
+    const data = new FormData();
+    data.append('fileData', {
+      uri: response.uri,
+      type: response.type,
+      name: response.fileName,
+    });
+
+    const config = {
+      headers: {
+        Accept: 'application/json',
+        'Content-type': 'multipart/form-data',
+      },
+    };
+
+    try {
+      const request = await axios.post(
+        'http://192.168.10.141:3001/upload',
+        data,
+        config,
+      );
+
+      const source = {uri: response.uri};
+
+      this.setState({
+        avatarSource: source,
+        loading: false,
+        error: false,
+      });
+    } catch (e) {
+      this.setState({
+        loading: false,
+        error: true,
+      });
+    }
+  };
+
+  render() {
+    const {avatarSource, loading, error} = this.state;
+    return (
+      <View style={styles.container}>
+        <View style={styles.avatarContainer}>
+          {avatarSource && (
+            <Image
+              source={this.state.avatarSource}
+              style={{width: 200, height: 200}}
+            />
+          )}
+          {loading && <ActivityIndicator size={'small'} />}
+          {error && <Text>Error.</Text>}
+        </View>
+        <Button title={'Select Picture'} onPress={this.onSelectPicture} />
+      </View>
+    );
+  }
+}
+
 const styles = StyleSheet.create({
-  scrollView: {
-    backgroundColor: Colors.lighter,
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5FCFF',
   },
-  engine: {
-    position: 'absolute',
-    right: 0,
-  },
-  body: {
-    backgroundColor: Colors.white,
-  },
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.black,
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-    color: Colors.dark,
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-  footer: {
-    color: Colors.dark,
-    fontSize: 12,
-    fontWeight: '600',
-    padding: 4,
-    paddingRight: 12,
-    textAlign: 'right',
+  avatarContainer: {
+    marginBottom: 10,
+    width: 200,
+    height: 200,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
-
-export default App;
